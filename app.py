@@ -3,7 +3,7 @@ import pandas as pd
 import random
 
 # Excelから問題を読み込み
-df = pd.read_excel("C:/Users\owara\OneDrive\デスクトップ\ITパスポート\ITパスポート問題集.xlsx")
+df = pd.read_excel("ITパスポート問題集.xlsx")
 
 # データ整形
 questions = []
@@ -55,4 +55,5 @@ if st.button("答える"):
     if st.session_state.qnum + 1 < len(st.session_state.asked):
         st.session_state.qnum += 1
     else:
+
         st.info(f"終了！あなたのスコアは {st.session_state.score}/{len(questions)} 点")

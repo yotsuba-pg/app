@@ -3,7 +3,7 @@ import pandas as pd
 import random
 
 # Excelファイルを読み込む
-df = pd.read_excel("quiz.xlsx")
+df = pd.read_excel("IT_passport_quiz.xlsx")
 
 # 変換テーブルの作成
 zenkaku_to_hankaku_table = str.maketrans(
@@ -11,7 +11,7 @@ zenkaku_to_hankaku_table = str.maketrans(
     '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 )
 zenkaku_symbols = '　。、・「」'
-hankaku_symbols = ' .,\'\''
+hankaku_symbols = ' .,\''
 symbol_translation_table = str.maketrans(zenkaku_symbols, hankaku_symbols)
 
 # ページ設定

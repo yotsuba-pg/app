@@ -1,98 +1,92 @@
-import tkinter as tk
-import random
+import streamlit as st
 import pandas as pd
+import random
 
-# Excelから問題を読み込み
-df = pd.read_excel("C:/Users/owara/OneDrive/デスクトップ/ITパスポート/ITパスポート問題集.xlsx")
+# Excelファイルを読み込み
+df = pd.read_excel("IT_passport_quiz.xlsx")
 
-# 問題データを整形
+# データを整形
 questions = []
 for _, row in df.iterrows():
     qtype = row["type"]
     if qtype == "select":
-        choices = [str(row[col]).strip() for col in ["choices1", "choices2", "choices3", "choices4"] if pd.notna(row[col])]
+        choices = [str(row[col]).strip() for col in ["choices1","choices2","choices3","choices4"] if pd.notna(row[col])]
     else:
         choices = []
-    answers = [str(row[col]).strip() for col in ["answer1", "answer2", "answer3", "answer4"] if pd.notna(row[col])]
-
+    answers = [str(row[col]).strip() for col in ["answer1","answer2","answer3","answer4"] if pd.notna(row[col])]
+    reference = str(row["参考"]).strip() if pd.notna(row["参考"]) else ""
+    
     questions.append({
         "type": qtype,
         "question": row["question"],
         "choices": choices,
-        "answer": answers
+        "answer": answers,
+        "reference": reference
     })
 
+# セッション状態を初期化
+if "score" not in st.session_state:
+    st.session_state.score = 0
+if "qnum" not in st.session_state:
+    st.session_state.qnum = 0
+if "asked" not in st.session_state:
+    st.session_state.asked = random.sample(questions, min(20, len(questions)))
+if "answered" not in st.session_state:
+    st.session_state.answered = False
 
-class QuizApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("ITパスポートクイズ")
+st.title("📘 ITパスポート クイズアプリ（20問ランダム出題）")
 
-        self.question_label = tk.Label(root, text="", font=("Arial", 16), wraplength=400, justify="left")
-        self.question_label.pack(pady=20)
+# 全問終了チェック
+if st.session_state.qnum >= len(st.session_state.asked):
+    st.success(f"🎉 終了！ あなたのスコアは {st.session_state.score}/{len(st.session_state.asked)} 点")
+    if st.button("最初からやり直す"):
+        st.session_state.score = 0
+        st.session_state.qnum = 0
+        st.session_state.asked = random.sample(questions, min(20, len(questions)))
+        st.session_state.answered = False
+    st.stop()
 
-        self.choice_frame = tk.Frame(root)
-        self.choice_frame.pack()
+# 現在の問題を取得
+current = st.session_state.asked[st.session_state.qnum]
+st.subheader(f"Q{st.session_state.qnum+1}: {current['question']}")
 
-        self.vars = []
-        self.entry = None
+# 選択 or 記述
+if current["type"] == "select":
+    selected = []
+    for choice in current["choices"]:
+        if st.checkbox(choice, key=f"{st.session_state.qnum}_{choice}"):
+            selected.append(choice)
+else:
+    user_input = st.text_input("答えを入力してください", key=f"input_{st.session_state.qnum}")
+    selected = [user_input] if user_input else []
 
-        self.check_button = tk.Button(root, text="答える", font=("Arial", 14), command=self.check_answer)
-        self.check_button.pack(pady=10)
-
-        self.result_label = tk.Label(root, text="", font=("Arial", 14))
-        self.result_label.pack(pady=20)
-
-        self.next_button = tk.Button(root, text="次の問題", font=("Arial", 14), command=self.next_question)
-        self.next_button.pack(pady=10)
-
-        self.next_question()
-
-    def next_question(self):
-        # 前の選択肢や入力欄を削除
-        for widget in self.choice_frame.winfo_children():
-            widget.destroy()
-        self.vars = []
-        self.entry = None
-
-        # ランダムに問題を選ぶ
-        self.current_question = random.choice(questions)
-        self.question_label.config(text=self.current_question["question"])
-
-        # 選択式
-        if self.current_question["type"] == "select":
-            shuffled_choices = random.sample(self.current_question["choices"], len(self.current_question["choices"]))
-            for choice in shuffled_choices:
-                var = tk.BooleanVar()
-                chk = tk.Checkbutton(self.choice_frame, text=choice, variable=var, font=("Arial", 14), anchor="w")
-                chk.pack(fill="x", padx=20, pady=2)
-                self.vars.append((var, choice))
-        else:  # 入力式
-            self.entry = tk.Entry(self.choice_frame, font=("Arial", 14))
-            self.entry.pack(padx=20, pady=5)
-
-        self.result_label.config(text="")
-
-    def check_answer(self):
-        if self.current_question["type"] == "select":
-            # 選択肢問題 → 全部一致で正解
-            selected = [choice for var, choice in self.vars if var.get()]
-            correct = set(self.current_question["answer"])
+# 答えるボタン
+if not st.session_state.answered:
+    if st.button("答える"):
+        correct = set(current["answer"])
+        if current["type"] == "input":
+            # 入力式は「どれか1つ正解すればOK」
+            if any(ans in selected for ans in correct):
+                st.success("🎉 正解！")
+                st.session_state.score += 1
+            else:
+                st.error(f"❌ 不正解… 正解は {', '.join(correct)}")
+        else:
+            # select形式は完全一致のみ正解
             if set(selected) == correct:
-                self.result_label.config(text="正解！ 🎉", fg="green")
+                st.success("🎉 正解！")
+                st.session_state.score += 1
             else:
-                self.result_label.config(text=f"不正解… 正解は {', '.join(correct)}", fg="red")
+                st.error(f"❌ 不正解… 正解は {', '.join(correct)}")
 
-        else:  # 入力問題 → 複数回答候補のどれか一致で正解
-            user_answer = self.entry.get().strip()
-            correct_answers = [ans.strip() for ans in self.current_question["answer"]]
-            if user_answer in correct_answers:
-                self.result_label.config(text="正解！ 🎉", fg="green")
-            else:
-                self.result_label.config(text=f"不正解… 正解は {', '.join(correct_answers)}", fg="red")
+        if current["reference"]:
+            st.info(f"参考: {current['reference']}")
+        
+        st.session_state.answered = True
 
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = QuizApp(root)
-    root.mainloop()
+# 次の問題へ
+if st.session_state.answered:
+    if st.button("次の問題へ"):
+        st.session_state.qnum += 1
+        st.session_state.answered = False
+        st.rerun()
